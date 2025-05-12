@@ -2,17 +2,11 @@ using Microsoft.Extensions.Configuration;
 
 namespace CodeReviewAI;
 
-public class CodeReviewBuilder
+public class CodeReviewBuilder(IConfiguration configuration)
 {
-    private readonly IConfiguration _configuration;
     private readonly List<ICodeReviewModule> _modules = new();
     private string _outputPath = Environment.CurrentDirectory;
     private int _prNumber;
-
-    public CodeReviewBuilder(IConfiguration configuration)
-    {
-        _configuration = configuration;
-    }
 
     public CodeReviewBuilder ForPullRequest(int prNumber)
     {
@@ -24,13 +18,13 @@ public class CodeReviewBuilder
 
     public CodeReviewBuilder AddAzureDevOps()
     {
-        _modules.Add(new AzureDevOpsModule(_configuration));
+        _modules.Add(new AzureDevOpsModule(configuration));
         return this;
     }
 
     public CodeReviewBuilder AddJira()
     {
-        _modules.Add(new JiraModule(_configuration));
+        _modules.Add(new JiraModule(configuration));
         return this;
     }
 
