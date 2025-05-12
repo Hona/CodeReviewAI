@@ -1,11 +1,17 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CodeReviewAI", "CodeReviewAI\CodeReviewAI.csproj", "{F3B6C2CA-41FA-4CD5-B978-EE43A190CC81}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CodeReviewAi.Cli", "CodeReviewAi.Cli\CodeReviewAi.Cli.csproj", "{F3B6C2CA-41FA-4CD5-B978-EE43A190CC81}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{7FAD4A7A-1661-42D5-879F-1BCDB87FA53D}"
 	ProjectSection(SolutionItems) = preProject
 		README.md = README.md
+		install-dev.bat = install-dev.bat
+		LICENSE = LICENSE
+		.gitattributes = .gitattributes
+		.gitignore = .gitignore
 	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CodeReviewAi.Core", "CodeReviewAi.Core\CodeReviewAi.Core.csproj", "{4746CEF0-5084-4ED4-894F-30873C12A7FF}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -17,5 +23,9 @@ Global
 		{F3B6C2CA-41FA-4CD5-B978-EE43A190CC81}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{F3B6C2CA-41FA-4CD5-B978-EE43A190CC81}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{F3B6C2CA-41FA-4CD5-B978-EE43A190CC81}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4746CEF0-5084-4ED4-894F-30873C12A7FF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4746CEF0-5084-4ED4-894F-30873C12A7FF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4746CEF0-5084-4ED4-894F-30873C12A7FF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4746CEF0-5084-4ED4-894F-30873C12A7FF}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
