@@ -7,7 +7,7 @@
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>code-review</ToolCommandName>
     <PackageId>Hona.CodeReviewAi</PackageId>
-    <Version>0.0.1</Version>
+    <Version>0.0.2</Version>
     <DisableMSBuildAssemblyCopyCheck>true</DisableMSBuildAssemblyCopyCheck>
     <Authors>Luke Parker (Hona)</Authors>
     <PackageDescription>Automatic code review using AI for AzDo, GitHub, Jira, etc.</PackageDescription>
