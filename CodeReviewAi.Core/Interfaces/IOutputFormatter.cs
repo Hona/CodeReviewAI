@@ -4,8 +4,5 @@ namespace CodeReviewAi.Core.Interfaces;
 
 public interface IOutputFormatter
 {
-    Task FormatAsync(
-        CodeReviewContext context,
-        CancellationToken cancellationToken = default
-    );
+    Task FormatAsync(CodeReviewContext context, CancellationToken cancellationToken = default);
 }

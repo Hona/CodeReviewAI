@@ -16,13 +16,13 @@ public partial class JiraService : IIssueTrackerProvider
     private readonly IHttpClientFactory _httpClientFactory;
 
     // Regex to find Jira issue URLs (adjust if your URL structure differs)
-    [GeneratedRegex(@"https?://[^\s/]+\.atlassian\.net/browse/([A-Z]+-\d+)", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(
+        @"https?://[^\s/]+\.atlassian\.net/browse/([A-Z]+-\d+)",
+        RegexOptions.IgnoreCase
+    )]
     private static partial Regex JiraIssueUrlRegex();
 
-    public JiraService(
-        IHttpClientFactory httpClientFactory,
-        IOptions<JiraConfig> options
-    )
+    public JiraService(IHttpClientFactory httpClientFactory, IOptions<JiraConfig> options)
     {
         _httpClientFactory = httpClientFactory;
         _config = options.Value;
@@ -33,13 +33,10 @@ public partial class JiraService : IIssueTrackerProvider
     {
         var client = _httpClientFactory.CreateClient("Jira");
         client.BaseAddress = new Uri($"{_config.BaseUrl}/rest/api/2/"); // Use API v2
-        client.DefaultRequestHeaders.Authorization =
-            new AuthenticationHeaderValue(
-                "Basic",
-                Convert.ToBase64String(
-                    Encoding.ASCII.GetBytes($"{_config.User}:{_config.Token}")
-                )
-            );
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "Basic",
+            Convert.ToBase64String(Encoding.ASCII.GetBytes($"{_config.User}:{_config.Token}"))
+        );
         client.DefaultRequestHeaders.Accept.Add(
             new MediaTypeWithQualityHeaderValue("application/json")
         );
@@ -60,11 +57,7 @@ public partial class JiraService : IIssueTrackerProvider
         var issues = new List<JiraIssue>();
         foreach (var key in issueKeys)
         {
-            var issue = await GetIssueDetailsAsync(
-                key,
-                targetDirectory,
-                cancellationToken
-            );
+            var issue = await GetIssueDetailsAsync(key, targetDirectory, cancellationToken);
             if (issue != null)
             {
                 issues.Add(issue);
@@ -100,21 +93,10 @@ public partial class JiraService : IIssueTrackerProvider
         var description = fields.GetProperty("description").GetString() ?? "";
         var issuePageUrl = $"{_config.BaseUrl}/browse/{issueKey}";
 
-        var attachments = await ProcessAttachmentsAsync(
-            fields,
-            targetDirectory,
-            cancellationToken
-        );
+        var attachments = await ProcessAttachmentsAsync(fields, targetDirectory, cancellationToken);
         var comments = ProcessComments(fields);
 
-        return new JiraIssue(
-            issueKey,
-            issuePageUrl,
-            summary,
-            description,
-            attachments,
-            comments
-        );
+        return new JiraIssue(issueKey, issuePageUrl, summary, description, attachments, comments);
     }
 
     private async Task<List<JiraAttachment>> ProcessAttachmentsAsync(
@@ -142,28 +124,18 @@ public partial class JiraService : IIssueTrackerProvider
                     "JiraAttachmentDownloader"
                 );
                 // Jira attachment URLs often require auth
-                contentClient.DefaultRequestHeaders.Authorization =
-                    _httpClient.DefaultRequestHeaders.Authorization;
+                contentClient.DefaultRequestHeaders.Authorization = _httpClient
+                    .DefaultRequestHeaders
+                    .Authorization;
 
-                var attResp = await contentClient.GetAsync(
-                    contentUrl,
-                    cancellationToken
-                );
+                var attResp = await contentClient.GetAsync(contentUrl, cancellationToken);
                 if (attResp.IsSuccessStatusCode)
                 {
-                    var attBytes = await attResp.Content.ReadAsByteArrayAsync(
-                        cancellationToken
-                    );
+                    var attBytes = await attResp.Content.ReadAsByteArrayAsync(cancellationToken);
                     var localPath = Path.Combine(targetDirectory, filename);
-                    await File.WriteAllBytesAsync(
-                        localPath,
-                        attBytes,
-                        cancellationToken
-                    );
+                    await File.WriteAllBytesAsync(localPath, attBytes, cancellationToken);
                     // Store relative path or just filename for markdown link
-                    attachments.Add(
-                        new JiraAttachment(filename, contentUrl, attBytes)
-                    );
+                    attachments.Add(new JiraAttachment(filename, contentUrl, attBytes));
                 }
                 else
                 {
@@ -187,9 +159,7 @@ public partial class JiraService : IIssueTrackerProvider
         {
             foreach (var comment in commentArray.EnumerateArray())
             {
-                var author = comment.GetProperty("author")
-                    .GetProperty("displayName")
-                    .GetString();
+                var author = comment.GetProperty("author").GetProperty("displayName").GetString();
                 var body = comment.GetProperty("body").GetString();
                 if (!string.IsNullOrEmpty(author) && !string.IsNullOrEmpty(body))
                 {

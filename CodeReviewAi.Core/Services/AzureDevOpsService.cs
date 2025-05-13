@@ -32,13 +32,10 @@ public class AzureDevOpsService : ISourceControlProvider
     private HttpClient CreateHttpClient()
     {
         var client = _httpClientFactory.CreateClient("AzureDevOps");
-        client.DefaultRequestHeaders.Authorization =
-            new AuthenticationHeaderValue(
-                "Basic",
-                Convert.ToBase64String(
-                    Encoding.ASCII.GetBytes($":{_config.PersonalAccessToken}")
-                )
-            );
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "Basic",
+            Convert.ToBase64String(Encoding.ASCII.GetBytes($":{_config.PersonalAccessToken}"))
+        );
         return client;
     }
 
@@ -89,13 +86,9 @@ public class AzureDevOpsService : ISourceControlProvider
             );
             return null;
         }
-        var diffJson = await diffResp.Content.ReadAsStringAsync(
-            cancellationToken
-        );
+        var diffJson = await diffResp.Content.ReadAsStringAsync(cancellationToken);
         using var diffDoc = JsonDocument.Parse(diffJson);
-        var baseCommit = diffDoc.RootElement
-            .GetProperty("baseCommit")
-            .GetString()!;
+        var baseCommit = diffDoc.RootElement.GetProperty("baseCommit").GetString()!;
 
         // Parse the changes from this response
         var changes = new List<FileChangeInfo>();
@@ -109,32 +102,27 @@ public class AzureDevOpsService : ISourceControlProvider
                 if (
                     change.TryGetProperty("item", out var item)
                     && item.TryGetProperty("path", out var pathElement)
-                    && item.TryGetProperty(
-                        "gitObjectType",
-                        out var gotElement
-                    )
+                    && item.TryGetProperty("gitObjectType", out var gotElement)
                     && gotElement.GetString() == "blob" // Only include files
-                    && change.TryGetProperty(
-                        "changeType",
-                        out var ctElement
-                    )
+                    && change.TryGetProperty("changeType", out var ctElement)
                 )
                 {
                     var path = pathElement.GetString();
                     var changeType = ctElement.GetString();
                     if (!string.IsNullOrEmpty(path) && !string.IsNullOrEmpty(changeType))
                     {
-                         changes.Add(new FileChangeInfo(path, changeType));
+                        changes.Add(new FileChangeInfo(path, changeType));
                     }
                 }
             }
         }
         else
         {
-             await Console.Error.WriteLineAsync($"No 'changes' array found in diff response for PR {pullRequestId}.");
-             // Decide if this is an error or just an empty PR
+            await Console.Error.WriteLineAsync(
+                $"No 'changes' array found in diff response for PR {pullRequestId}."
+            );
+            // Decide if this is an error or just an empty PR
         }
-
 
         return new PullRequestDetails(
             pullRequestId,
@@ -160,8 +148,8 @@ public class AzureDevOpsService : ISourceControlProvider
 
         if (prDetails.Changes == null || !prDetails.Changes.Any())
         {
-             Console.WriteLine($"No file changes found to diff for PR {prDetails.Id}.");
-             return Enumerable.Empty<DiffInfo>();
+            Console.WriteLine($"No file changes found to diff for PR {prDetails.Id}.");
+            return Enumerable.Empty<DiffInfo>();
         }
 
         foreach (var change in prDetails.Changes)
@@ -209,12 +197,8 @@ public class AzureDevOpsService : ISourceControlProvider
             $"https://dev.azure.com/{_config.Organization}/{_config.Project}/_apis/git/repositories/{_config.RepositoryId}/items?path={Uri.EscapeDataString(path)}&versionType=commit&version={commitId}&$format=text&api-version=7.2-preview.1";
 
         using var request = new HttpRequestMessage(HttpMethod.Get, itemUrl);
-        request.Headers.Accept.Add(
-            new MediaTypeWithQualityHeaderValue("text/plain")
-        );
-        request.Headers.Accept.Add(
-            new MediaTypeWithQualityHeaderValue("application/octet-stream")
-        );
+        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("text/plain"));
+        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/octet-stream"));
 
         var response = await _httpClient.SendAsync(request, cancellationToken);
         if (response.IsSuccessStatusCode)

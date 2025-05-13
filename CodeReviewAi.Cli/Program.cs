@@ -16,46 +16,50 @@ var configuration = new ConfigurationBuilder()
     .Build();
 
 var host = Host.CreateDefaultBuilder(args)
-    .ConfigureServices((context, services) =>
-    {
-        services.AddOptions<AzureDevOpsConfig>()
-            .Bind(configuration.GetSection(AzureDevOpsConfig.SectionName))
-            .ValidateDataAnnotations()
-            .ValidateOnStart();
+    .ConfigureServices(
+        (context, services) =>
+        {
+            services
+                .AddOptions<AzureDevOpsConfig>()
+                .Bind(configuration.GetSection(AzureDevOpsConfig.SectionName))
+                .ValidateDataAnnotations()
+                .ValidateOnStart();
 
-        services.AddOptions<JiraConfig>()
-            .Bind(configuration.GetSection(JiraConfig.SectionName))
-            .ValidateDataAnnotations()
-            .ValidateOnStart();
+            services
+                .AddOptions<JiraConfig>()
+                .Bind(configuration.GetSection(JiraConfig.SectionName))
+                .ValidateDataAnnotations()
+                .ValidateOnStart();
 
-        services.AddOptions<CodeReviewConfig>()
-            .Bind(configuration.GetSection(CodeReviewConfig.SectionName))
-            .ValidateDataAnnotations()
-            .ValidateOnStart();
+            services
+                .AddOptions<CodeReviewConfig>()
+                .Bind(configuration.GetSection(CodeReviewConfig.SectionName))
+                .ValidateDataAnnotations()
+                .ValidateOnStart();
 
-        services.AddHttpClient();
-        services.AddHttpClient("AzureDevOps");
-        services.AddHttpClient("Jira");
-        services.AddHttpClient("JiraAttachmentDownloader");
+            services.AddHttpClient();
+            services.AddHttpClient("AzureDevOps");
+            services.AddHttpClient("Jira");
+            services.AddHttpClient("JiraAttachmentDownloader");
 
-        services.AddSingleton<ISourceControlProvider, AzureDevOpsService>();
-        services.AddSingleton<IIssueTrackerProvider, JiraService>();
-        services.AddSingleton<IOutputFormatter, MarkdownOutputFormatter>();
+            services.AddSingleton<ISourceControlProvider, AzureDevOpsService>();
+            services.AddSingleton<IIssueTrackerProvider, JiraService>();
+            services.AddSingleton<IOutputFormatter, MarkdownOutputFormatter>();
 
-        services.AddTransient<CodeReviewBuilder>();
-        
-        // Add ILlmProvider implementation here when ready
-        // services.AddSingleton<ILlmProvider, ManualPromptProvider>();
-    })
+            services.AddTransient<CodeReviewBuilder>();
+
+            // Add ILlmProvider implementation here when ready
+            // services.AddSingleton<ILlmProvider, ManualPromptProvider>();
+        }
+    )
     .Build();
 
 var serviceProvider = host.Services;
 
-var prOption = new Option<int>(
-    "--pr",
-    description: "The Azure DevOps Pull Request ID."
-)
-{ IsRequired = true };
+var prOption = new Option<int>("--pr", description: "The Azure DevOps Pull Request ID.")
+{
+    IsRequired = true,
+};
 
 var rootCommand = new RootCommand(
     "Generates context for AI code review from AzDO PRs and linked Jira issues."
@@ -93,11 +97,8 @@ rootCommand.SetHandler(
                 );
             }
 
-            var reviewContext = await builder.BuildAsync(
-                writeToFile: true,
-                cancellationToken
-            );
-            
+            var reviewContext = await builder.BuildAsync(writeToFile: true, cancellationToken);
+
             // In manual mode, the markdown is generated.
             // In autonomous mode, you'd pass reviewContext to an LLM provider here.
             // e.g., var llmProvider = serviceProvider.GetRequiredService<ILlmProvider>();

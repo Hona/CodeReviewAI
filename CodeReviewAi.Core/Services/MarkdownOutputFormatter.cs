@@ -7,7 +7,8 @@ using Microsoft.Extensions.Options;
 
 namespace CodeReviewAi.Core.Services;
 
-public class MarkdownOutputFormatter(IOptions<CodeReviewConfig> codeReviewOptions) : IOutputFormatter
+public class MarkdownOutputFormatter(IOptions<CodeReviewConfig> codeReviewOptions)
+    : IOutputFormatter
 {
     private readonly CodeReviewConfig _codeReviewConfig = codeReviewOptions.Value;
 
@@ -42,7 +43,8 @@ public class MarkdownOutputFormatter(IOptions<CodeReviewConfig> codeReviewOption
             if (!string.IsNullOrWhiteSpace(issue.Description))
             {
                 // Basic Jira wiki markup to Markdown conversion (can be expanded)
-                var markdownDesc = issue.Description.Replace("{code}", "```")
+                var markdownDesc = issue
+                    .Description.Replace("{code}", "```")
                     .Replace("{noformat}", "```");
                 sb.AppendLine(markdownDesc);
                 sb.AppendLine();
@@ -55,18 +57,14 @@ public class MarkdownOutputFormatter(IOptions<CodeReviewConfig> codeReviewOption
                 foreach (var att in issue.Attachments)
                 {
                     var ext = Path.GetExtension(att.FileName).ToLowerInvariant();
-                    if (
-                        ext is ".png" or ".jpg" or ".jpeg" or ".gif" or ".bmp"
-                    )
+                    if (ext is ".png" or ".jpg" or ".jpeg" or ".gif" or ".bmp")
                     {
                         // Assumes attachments are saved relative to the markdown file
                         sb.AppendLine($"![{att.FileName}]({att.FileName})");
                     }
                     else
                     {
-                        sb.AppendLine(
-                            $"[Attachment: {att.FileName}]({att.FileName})"
-                        );
+                        sb.AppendLine($"[Attachment: {att.FileName}]({att.FileName})");
                     }
                 }
                 sb.AppendLine();

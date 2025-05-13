@@ -44,11 +44,10 @@ public class CodeReviewBuilder
                 "Pull Request ID must be set before fetching details."
             );
 
-        CurrentContext.PullRequestDetails =
-            await _sourceControlProvider.GetPullRequestDetailsAsync(
-                CurrentContext.PullRequestId,
-                cancellationToken
-            );
+        CurrentContext.PullRequestDetails = await _sourceControlProvider.GetPullRequestDetailsAsync(
+            CurrentContext.PullRequestId,
+            cancellationToken
+        );
 
         if (CurrentContext.PullRequestDetails == null)
             throw new InvalidOperationException(
@@ -83,9 +82,7 @@ public class CodeReviewBuilder
                 "Pull Request details must be fetched before adding Jira details."
             );
         if (string.IsNullOrEmpty(CurrentContext.OutputDirectory))
-            throw new InvalidOperationException(
-                "Output directory must be configured."
-            );
+            throw new InvalidOperationException("Output directory must be configured.");
 
         var prDescription = CurrentContext.PullRequestDetails.Description;
         var prFolder = Path.Combine(
@@ -103,9 +100,7 @@ public class CodeReviewBuilder
         return this;
     }
 
-    public async Task FormatOutputAsync(
-        CancellationToken cancellationToken = default
-    ) =>
+    public async Task FormatOutputAsync(CancellationToken cancellationToken = default) =>
         await _outputFormatter.FormatAsync(CurrentContext, cancellationToken);
 
     public async Task<CodeReviewContext> BuildAsync(
@@ -113,10 +108,12 @@ public class CodeReviewBuilder
         CancellationToken cancellationToken = default
     )
     {
-        if (!writeToFile
+        if (
+            !writeToFile
             || string.IsNullOrEmpty(CurrentContext.OutputDirectory)
             || string.IsNullOrEmpty(CurrentContext.OutputFileName)
-            || string.IsNullOrEmpty(CurrentContext.GeneratedMarkdown))
+            || string.IsNullOrEmpty(CurrentContext.GeneratedMarkdown)
+        )
         {
             if (writeToFile)
             {
@@ -124,7 +121,7 @@ public class CodeReviewBuilder
                     "Warning: Could not write output file. Context properties missing (OutputDirectory, OutputFileName, GeneratedMarkdown)."
                 );
             }
-            
+
             return CurrentContext;
         }
 
@@ -134,11 +131,7 @@ public class CodeReviewBuilder
         );
         Directory.CreateDirectory(prFolder);
         var fullPath = Path.Combine(prFolder, CurrentContext.OutputFileName);
-        await File.WriteAllTextAsync(
-            fullPath,
-            CurrentContext.GeneratedMarkdown,
-            cancellationToken
-        );
+        await File.WriteAllTextAsync(fullPath, CurrentContext.GeneratedMarkdown, cancellationToken);
         Console.WriteLine($"Review markdown written to: {fullPath}");
 
         return CurrentContext;
