@@ -12,7 +12,7 @@ namespace CodeReviewAi.Core.Services;
 public partial class JiraService : IIssueTrackerProvider
 {
     private readonly HttpClient _httpClient;
-    private readonly JiraOptions _options;
+    private readonly JiraConfig _config;
     private readonly IHttpClientFactory _httpClientFactory;
 
     // Regex to find Jira issue URLs (adjust if your URL structure differs)
@@ -21,23 +21,23 @@ public partial class JiraService : IIssueTrackerProvider
 
     public JiraService(
         IHttpClientFactory httpClientFactory,
-        IOptions<JiraOptions> options
+        IOptions<JiraConfig> options
     )
     {
         _httpClientFactory = httpClientFactory;
-        _options = options.Value;
+        _config = options.Value;
         _httpClient = CreateHttpClient();
     }
 
     private HttpClient CreateHttpClient()
     {
         var client = _httpClientFactory.CreateClient("Jira");
-        client.BaseAddress = new Uri($"{_options.BaseUrl}/rest/api/2/"); // Use API v2
+        client.BaseAddress = new Uri($"{_config.BaseUrl}/rest/api/2/"); // Use API v2
         client.DefaultRequestHeaders.Authorization =
             new AuthenticationHeaderValue(
                 "Basic",
                 Convert.ToBase64String(
-                    Encoding.ASCII.GetBytes($"{_options.User}:{_options.Token}")
+                    Encoding.ASCII.GetBytes($"{_config.User}:{_config.Token}")
                 )
             );
         client.DefaultRequestHeaders.Accept.Add(
@@ -85,7 +85,7 @@ public partial class JiraService : IIssueTrackerProvider
         if (!response.IsSuccessStatusCode)
         {
             // Log error
-            Console.Error.WriteLine(
+            await Console.Error.WriteLineAsync(
                 $"Failed to get Jira issue {issueKey}: {response.StatusCode}"
             );
             return null;
@@ -98,7 +98,7 @@ public partial class JiraService : IIssueTrackerProvider
 
         var summary = fields.GetProperty("summary").GetString() ?? "N/A";
         var description = fields.GetProperty("description").GetString() ?? "";
-        var issuePageUrl = $"{_options.BaseUrl}/browse/{issueKey}";
+        var issuePageUrl = $"{_config.BaseUrl}/browse/{issueKey}";
 
         var attachments = await ProcessAttachmentsAsync(
             fields,
@@ -167,7 +167,7 @@ public partial class JiraService : IIssueTrackerProvider
                 }
                 else
                 {
-                    Console.Error.WriteLine(
+                    await Console.Error.WriteLineAsync(
                         $"Failed to download attachment {filename}: {attResp.StatusCode}"
                     );
                 }

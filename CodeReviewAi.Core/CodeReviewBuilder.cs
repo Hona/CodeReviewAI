@@ -7,31 +7,31 @@ namespace CodeReviewAi.Core;
 
 public class CodeReviewBuilder
 {
-    private readonly CodeReviewContext _context = new();
     private readonly ISourceControlProvider _sourceControlProvider;
-    private readonly IIssueTrackerProvider _jiraProvider; // Specific for now
+    private readonly IIssueTrackerProvider _jiraProvider;
     private readonly IOutputFormatter _outputFormatter;
-    private readonly CodeReviewOptions _codeReviewOptions;
 
-    // Inject other providers (GitHub, LLM, etc.) as needed
+    public CodeReviewContext CurrentContext { get; } = new();
+
     public CodeReviewBuilder(
         ISourceControlProvider sourceControlProvider,
         IIssueTrackerProvider jiraProvider,
         IOutputFormatter outputFormatter,
-        IOptions<CodeReviewOptions> codeReviewOptions
+        IOptions<CodeReviewConfig> codeReviewOptions
     )
     {
         _sourceControlProvider = sourceControlProvider;
         _jiraProvider = jiraProvider;
         _outputFormatter = outputFormatter;
-        _codeReviewOptions = codeReviewOptions.Value;
-        _context.ReviewPrompt = _codeReviewOptions.ReviewPrompt;
-        _context.OutputDirectory = _codeReviewOptions.OutputDirectory;
+        var codeReviewConfig = codeReviewOptions.Value;
+        CurrentContext.ReviewPrompt = codeReviewConfig.ReviewPrompt;
+        CurrentContext.OutputDirectory = codeReviewConfig.OutputDirectory;
     }
 
     public CodeReviewBuilder SetPullRequestId(int prId)
     {
-        _context.PullRequestId = prId;
+        CurrentContext.PullRequestId = prId;
+        CurrentContext.OutputFileName = $"PR-{CurrentContext.PullRequestId}-review.md";
         return this;
     }
 
@@ -39,24 +39,21 @@ public class CodeReviewBuilder
         CancellationToken cancellationToken = default
     )
     {
-        if (_context.PullRequestId <= 0)
+        if (CurrentContext.PullRequestId <= 0)
             throw new InvalidOperationException(
                 "Pull Request ID must be set before fetching details."
             );
 
-        _context.PullRequestDetails =
+        CurrentContext.PullRequestDetails =
             await _sourceControlProvider.GetPullRequestDetailsAsync(
-                _context.PullRequestId,
+                CurrentContext.PullRequestId,
                 cancellationToken
             );
 
-        if (_context.PullRequestDetails == null)
+        if (CurrentContext.PullRequestDetails == null)
             throw new InvalidOperationException(
-                $"Failed to retrieve details for PR {_context.PullRequestId}."
+                $"Failed to retrieve details for PR {CurrentContext.PullRequestId}."
             );
-
-        _context.OutputFileName = $"PR-{_context.PullRequestId}-review.md";
-
         return this;
     }
 
@@ -64,16 +61,16 @@ public class CodeReviewBuilder
         CancellationToken cancellationToken = default
     )
     {
-        if (_context.PullRequestDetails == null)
+        if (CurrentContext.PullRequestDetails == null)
             throw new InvalidOperationException(
                 "Pull Request details must be fetched before adding diffs."
             );
 
         var diffs = await _sourceControlProvider.GetDiffsAsync(
-            _context.PullRequestDetails,
+            CurrentContext.PullRequestDetails,
             cancellationToken
         );
-        _context.Diffs.AddRange(diffs);
+        CurrentContext.Diffs.AddRange(diffs);
         return this;
     }
 
@@ -81,71 +78,69 @@ public class CodeReviewBuilder
         CancellationToken cancellationToken = default
     )
     {
-        if (_context.PullRequestDetails == null)
+        if (CurrentContext.PullRequestDetails == null)
             throw new InvalidOperationException(
                 "Pull Request details must be fetched before adding Jira details."
             );
-        if (string.IsNullOrEmpty(_context.OutputDirectory))
+        if (string.IsNullOrEmpty(CurrentContext.OutputDirectory))
             throw new InvalidOperationException(
                 "Output directory must be configured."
             );
 
-        var prDescription = _context.PullRequestDetails.Description ?? "";
+        var prDescription = CurrentContext.PullRequestDetails.Description;
         var prFolder = Path.Combine(
-            _context.OutputDirectory,
-            $"PR-{_context.PullRequestId}"
+            CurrentContext.OutputDirectory,
+            $"PR-{CurrentContext.PullRequestId}"
         );
+        Directory.CreateDirectory(prFolder);
 
         var issues = await _jiraProvider.GetIssuesFromTextAsync(
             prDescription,
-            prFolder, // Pass directory for attachments
+            prFolder,
             cancellationToken
         );
-        _context.JiraIssues.AddRange(issues);
+        CurrentContext.JiraIssues.AddRange(issues);
         return this;
     }
 
-    public async Task<CodeReviewBuilder> FormatOutputAsync(
+    public async Task FormatOutputAsync(
         CancellationToken cancellationToken = default
-    )
-    {
-        await _outputFormatter.FormatAsync(_context, cancellationToken);
-        return this;
-    }
+    ) =>
+        await _outputFormatter.FormatAsync(CurrentContext, cancellationToken);
 
     public async Task<CodeReviewContext> BuildAsync(
         bool writeToFile = true,
         CancellationToken cancellationToken = default
     )
     {
-        // Ensure output directory exists
-        if (
-            writeToFile
-            && !string.IsNullOrEmpty(_context.OutputDirectory)
-            && !string.IsNullOrEmpty(_context.OutputFileName)
-            && !string.IsNullOrEmpty(_context.GeneratedMarkdown)
-        )
+        if (!writeToFile
+            || string.IsNullOrEmpty(CurrentContext.OutputDirectory)
+            || string.IsNullOrEmpty(CurrentContext.OutputFileName)
+            || string.IsNullOrEmpty(CurrentContext.GeneratedMarkdown))
         {
-            var prFolder = Path.Combine(
-                _context.OutputDirectory,
-                $"PR-{_context.PullRequestId}"
-            );
-            Directory.CreateDirectory(prFolder);
-            var fullPath = Path.Combine(prFolder, _context.OutputFileName);
-            await File.WriteAllTextAsync(
-                fullPath,
-                _context.GeneratedMarkdown,
-                cancellationToken
-            );
-            Console.WriteLine($"Review markdown written to: {fullPath}");
-        }
-        else if (writeToFile)
-        {
-            Console.Error.WriteLine(
-                "Warning: Could not write output file. Context properties missing (OutputDirectory, OutputFileName, GeneratedMarkdown)."
-            );
+            if (writeToFile)
+            {
+                await Console.Error.WriteLineAsync(
+                    "Warning: Could not write output file. Context properties missing (OutputDirectory, OutputFileName, GeneratedMarkdown)."
+                );
+            }
+            
+            return CurrentContext;
         }
 
-        return _context;
+        var prFolder = Path.Combine(
+            CurrentContext.OutputDirectory,
+            $"PR-{CurrentContext.PullRequestId}"
+        );
+        Directory.CreateDirectory(prFolder);
+        var fullPath = Path.Combine(prFolder, CurrentContext.OutputFileName);
+        await File.WriteAllTextAsync(
+            fullPath,
+            CurrentContext.GeneratedMarkdown,
+            cancellationToken
+        );
+        Console.WriteLine($"Review markdown written to: {fullPath}");
+
+        return CurrentContext;
     }
 }

@@ -1,6 +1,6 @@
 namespace CodeReviewAi.Core.Configuration;
 
-public class JiraOptions
+public class JiraConfig
 {
     public const string SectionName = "Jira";
 

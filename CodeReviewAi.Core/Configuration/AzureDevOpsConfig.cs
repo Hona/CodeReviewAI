@@ -1,6 +1,6 @@
 namespace CodeReviewAi.Core.Configuration;
 
-public class AzureDevOpsOptions
+public class AzureDevOpsConfig
 {
     public const string SectionName = "AzureDevOps";
 

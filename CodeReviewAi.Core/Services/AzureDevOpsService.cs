@@ -15,17 +15,17 @@ namespace CodeReviewAi.Core.Services;
 public class AzureDevOpsService : ISourceControlProvider
 {
     private readonly HttpClient _httpClient;
-    private readonly AzureDevOpsOptions _options;
+    private readonly AzureDevOpsConfig _config;
     private readonly IHttpClientFactory _httpClientFactory;
     private const string RefPrefix = "refs/heads/";
 
     public AzureDevOpsService(
         IHttpClientFactory httpClientFactory,
-        IOptions<AzureDevOpsOptions> options
+        IOptions<AzureDevOpsConfig> options
     )
     {
         _httpClientFactory = httpClientFactory;
-        _options = options.Value;
+        _config = options.Value;
         _httpClient = CreateHttpClient();
     }
 
@@ -36,7 +36,7 @@ public class AzureDevOpsService : ISourceControlProvider
             new AuthenticationHeaderValue(
                 "Basic",
                 Convert.ToBase64String(
-                    Encoding.ASCII.GetBytes($":{_options.PersonalAccessToken}")
+                    Encoding.ASCII.GetBytes($":{_config.PersonalAccessToken}")
                 )
             );
         return client;
@@ -48,11 +48,11 @@ public class AzureDevOpsService : ISourceControlProvider
     )
     {
         var prUrl =
-            $"https://dev.azure.com/{_options.Organization}/{_options.Project}/_apis/git/repositories/{_options.RepositoryId}/pullRequests/{pullRequestId}?api-version=7.2-preview";
+            $"https://dev.azure.com/{_config.Organization}/{_config.Project}/_apis/git/repositories/{_config.RepositoryId}/pullRequests/{pullRequestId}?api-version=7.2-preview";
         var prResp = await _httpClient.GetAsync(prUrl, cancellationToken);
         if (!prResp.IsSuccessStatusCode)
         {
-            Console.Error.WriteLine(
+            await Console.Error.WriteLineAsync(
                 $"Failed to get PR {pullRequestId}: {prResp.StatusCode}"
             );
             return null;
@@ -80,11 +80,11 @@ public class AzureDevOpsService : ISourceControlProvider
 
         // Fetch diff to get base commit AND the list of changes
         var diffUrl =
-            $"https://dev.azure.com/{_options.Organization}/{_options.Project}/_apis/git/repositories/{_options.RepositoryId}/diffs/commits?baseVersion={Uri.EscapeDataString(cleanTargetRef)}&targetVersion={Uri.EscapeDataString(cleanSourceRef)}&diffCommonCommit=true&api-version=7.2-preview";
+            $"https://dev.azure.com/{_config.Organization}/{_config.Project}/_apis/git/repositories/{_config.RepositoryId}/diffs/commits?baseVersion={Uri.EscapeDataString(cleanTargetRef)}&targetVersion={Uri.EscapeDataString(cleanSourceRef)}&diffCommonCommit=true&api-version=7.2-preview";
         var diffResp = await _httpClient.GetAsync(diffUrl, cancellationToken);
         if (!diffResp.IsSuccessStatusCode)
         {
-            Console.Error.WriteLine(
+            await Console.Error.WriteLineAsync(
                 $"Failed to get diff for base commit/changes (PR {pullRequestId}): {diffResp.StatusCode} using URL: {diffUrl}"
             );
             return null;
@@ -131,7 +131,7 @@ public class AzureDevOpsService : ISourceControlProvider
         }
         else
         {
-             Console.Error.WriteLine($"No 'changes' array found in diff response for PR {pullRequestId}.");
+             await Console.Error.WriteLineAsync($"No 'changes' array found in diff response for PR {pullRequestId}.");
              // Decide if this is an error or just an empty PR
         }
 
@@ -206,7 +206,7 @@ public class AzureDevOpsService : ISourceControlProvider
     )
     {
         var itemUrl =
-            $"https://dev.azure.com/{_options.Organization}/{_options.Project}/_apis/git/repositories/{_options.RepositoryId}/items?path={Uri.EscapeDataString(path)}&versionType=commit&version={commitId}&$format=text&api-version=7.2-preview.1";
+            $"https://dev.azure.com/{_config.Organization}/{_config.Project}/_apis/git/repositories/{_config.RepositoryId}/items?path={Uri.EscapeDataString(path)}&versionType=commit&version={commitId}&$format=text&api-version=7.2-preview.1";
 
         using var request = new HttpRequestMessage(HttpMethod.Get, itemUrl);
         request.Headers.Accept.Add(
@@ -227,7 +227,7 @@ public class AzureDevOpsService : ISourceControlProvider
             return string.Empty; // Return empty string instead of null for DiffPlex
         }
 
-        Console.Error.WriteLine(
+        await Console.Error.WriteLineAsync(
             $"Error fetching content for '{path}' at commit {commitId}: {response.StatusCode}"
         );
         return string.Empty; // Return empty string on error to avoid null issues

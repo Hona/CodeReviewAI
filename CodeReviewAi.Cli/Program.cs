@@ -8,56 +8,49 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Http;
+using Microsoft.Extensions.Options;
 
-// Build configuration
 var configuration = new ConfigurationBuilder()
     .SetBasePath(Directory.GetCurrentDirectory())
     .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
     .Build();
 
-// Set up DI
 var host = Host.CreateDefaultBuilder(args)
     .ConfigureServices((context, services) =>
     {
-        services.AddOptions<AzureDevOpsOptions>()
-            .Bind(configuration.GetSection(AzureDevOpsOptions.SectionName))
+        services.AddOptions<AzureDevOpsConfig>()
+            .Bind(configuration.GetSection(AzureDevOpsConfig.SectionName))
             .ValidateDataAnnotations()
             .ValidateOnStart();
 
-        services.AddOptions<JiraOptions>()
-            .Bind(configuration.GetSection(JiraOptions.SectionName))
+        services.AddOptions<JiraConfig>()
+            .Bind(configuration.GetSection(JiraConfig.SectionName))
             .ValidateDataAnnotations()
             .ValidateOnStart();
 
-        services.AddOptions<CodeReviewOptions>()
-            .Bind(configuration.GetSection(CodeReviewOptions.SectionName))
+        services.AddOptions<CodeReviewConfig>()
+            .Bind(configuration.GetSection(CodeReviewConfig.SectionName))
             .ValidateDataAnnotations()
             .ValidateOnStart();
 
-        // Configure HttpClientFactory
         services.AddHttpClient();
-        // Named client for AzDO (can add specific policies like Polly later)
         services.AddHttpClient("AzureDevOps");
-        // Named client for Jira (can add specific policies)
         services.AddHttpClient("Jira");
-        // Named client for Jira Attachments (might have different base URL or auth needs)
         services.AddHttpClient("JiraAttachmentDownloader");
 
-        // Register services
         services.AddSingleton<ISourceControlProvider, AzureDevOpsService>();
         services.AddSingleton<IIssueTrackerProvider, JiraService>();
         services.AddSingleton<IOutputFormatter, MarkdownOutputFormatter>();
+
+        services.AddTransient<CodeReviewBuilder>();
+        
         // Add ILlmProvider implementation here when ready
         // services.AddSingleton<ILlmProvider, ManualPromptProvider>();
-
-        // Register the builder itself
-        services.AddTransient<CodeReviewBuilder>();
     })
     .Build();
 
 var serviceProvider = host.Services;
 
-// Set up System.CommandLine
 var prOption = new Option<int>(
     "--pr",
     description: "The Azure DevOps Pull Request ID."
@@ -79,13 +72,32 @@ rootCommand.SetHandler(
         {
             var builder = serviceProvider.GetRequiredService<CodeReviewBuilder>();
 
-            var reviewContext = await (await (await ((await (await builder.SetPullRequestId(prId)
-                .AddAzureDevOpsDetailsAsync(cancellationToken))
-                .AddJiraDetailsAsync(cancellationToken)) // Assumes Jira links are in PR description
-                .AddDiffsAsync(cancellationToken)))
-                .FormatOutputAsync(cancellationToken))
-                .BuildAsync(writeToFile: true, cancellationToken); // Build and write file
+            builder.SetPullRequestId(prId);
+            await builder.AddAzureDevOpsDetailsAsync(cancellationToken);
 
+            // Check if PR details were successfully fetched using the public property
+            if (builder.CurrentContext.PullRequestDetails != null)
+            {
+                await builder.AddJiraDetailsAsync(cancellationToken);
+                await builder.AddDiffsAsync(cancellationToken);
+                await builder.FormatOutputAsync(cancellationToken);
+            }
+            else
+            {
+                // Handle the case where PR details could not be fetched,
+                // e.g., log a specific message. The exception in AddAzureDevOpsDetailsAsync
+                // would have already been thrown and caught by the outer try-catch.
+                // This block is more for logic that depends on PR details being present.
+                Console.Error.WriteLine(
+                    $"Skipping further processing as PR details for {prId} could not be fetched."
+                );
+            }
+
+            var reviewContext = await builder.BuildAsync(
+                writeToFile: true,
+                cancellationToken
+            );
+            
             // In manual mode, the markdown is generated.
             // In autonomous mode, you'd pass reviewContext to an LLM provider here.
             // e.g., var llmProvider = serviceProvider.GetRequiredService<ILlmProvider>();
@@ -99,12 +111,11 @@ rootCommand.SetHandler(
         {
             Console.ForegroundColor = ConsoleColor.Red;
             Console.Error.WriteLine($"Error: {ex.Message}");
-            Console.Error.WriteLine(ex.StackTrace); // Optional: for debugging
+            Console.Error.WriteLine(ex.StackTrace);
             Console.ResetColor();
             context.ExitCode = 1;
         }
     }
 );
 
-// Execute command line app
 return await rootCommand.InvokeAsync(args);

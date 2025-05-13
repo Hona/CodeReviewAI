@@ -1,6 +1,6 @@
 namespace CodeReviewAi.Core.Configuration;
 
-public class CodeReviewOptions
+public class CodeReviewConfig
 {
     public const string SectionName = "CodeReview";
 

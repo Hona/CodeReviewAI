@@ -7,14 +7,10 @@ using Microsoft.Extensions.Options;
 
 namespace CodeReviewAi.Core.Services;
 
-public class MarkdownOutputFormatter : IOutputFormatter
+public class MarkdownOutputFormatter(IOptions<CodeReviewConfig> codeReviewOptions) : IOutputFormatter
 {
-    readonly CodeReviewOptions _codeReviewOptions;
+    private readonly CodeReviewConfig _codeReviewConfig = codeReviewOptions.Value;
 
-    public MarkdownOutputFormatter(IOptions<CodeReviewOptions> codeReviewOptions)
-    {
-        _codeReviewOptions = codeReviewOptions.Value;
-    }
     public Task FormatAsync(
         CodeReviewContext context,
         CancellationToken cancellationToken = default
@@ -110,7 +106,7 @@ public class MarkdownOutputFormatter : IOutputFormatter
                             sb.AppendLine($"-{line.Text}");
                             break;
                         case ChangeType.Unchanged:
-                            if (_codeReviewOptions.IncludeUnchangedLinesInDiff)
+                            if (_codeReviewConfig.IncludeUnchangedLinesInDiff)
                             {
                                 sb.AppendLine($" {line.Text}");
                             }
